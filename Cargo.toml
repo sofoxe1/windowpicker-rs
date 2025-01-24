@@ -1,0 +1,8 @@
+[package]
+name = "windowpicker"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+willhook = "0.6.3"
+windows = { version = "0.59.0", features = ["Win32_UI_WindowsAndMessaging"], default-features = false }
