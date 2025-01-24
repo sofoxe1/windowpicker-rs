@@ -13,6 +13,11 @@ pub fn get_hwnd_on_click() -> HWND {
 pub fn get_hwnd_on_move() -> HWND {
     unsafe { WindowFromPoint(get_mouse_pos_on_move()) }
 }
+pub fn get_hwnd_under_mouse() -> HWND {
+    let mut point = POINT { x: 0, y: 0 };
+    unsafe { GetCursorPos(ptr::addr_of_mut!(point)).unwrap() };
+    unsafe { WindowFromPoint(point) }
+}
 pub fn get_mouse_pos_on_click() -> POINT {
     loop {
         let event = match mouse_hook().unwrap().recv().unwrap() {
