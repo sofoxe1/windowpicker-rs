@@ -7,6 +7,6 @@ name = "bin"
 path = "src/bin.rs"
 
 [dependencies]
+rand = "0.8.5"
 willhook = "0.6.3"
 windows = { version = "0.59.0", features = ["Win32_Graphics_Gdi", "Win32_UI_WindowsAndMessaging"], default-features = false }
-winit = "0.30.8"
