@@ -98,7 +98,7 @@ fn draw_border()->usize{
                 let (other_hwnd,clicked):(HWND,bool) = get_hwnd_on_move_with_click(Some(&mouse_hook));
                 if clicked{
                     let _ = DestroyWindow(hwnd);
-                    return hwnd.0 as usize;
+                    return other_hwnd.0 as usize;
                 }
                 if other_hwnd == hwnd {
                     panic!();
