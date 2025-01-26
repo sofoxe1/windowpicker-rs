@@ -1,6 +1,6 @@
 use std::ptr;
 
-use willhook::{ mouse_hook, MouseButton, MouseButtonPress};
+use willhook::{ mouse_hook, Hook, MouseButton, MouseButtonPress};
 use windows::Win32::UI::WindowsAndMessaging::{DestroyWindow, PeekMessageA, PM_REMOVE};
 use windows::Win32::{
     Foundation::{HWND, POINT},
@@ -89,17 +89,22 @@ fn draw_border()->usize{
         let t1_hwnd=u_hwnd.clone();
         let pool_rate = time::Duration::from_millis(5);
         let t1 = thread::spawn(move || {
+            let mouse_hook = mouse_hook().unwrap();
             let hwnd = HWND((t1_hwnd) as *mut c_void);
+            let mut old_hwnd=get_hwnd_under_mouse();
             loop {
                 thread::sleep(pool_rate);
 
-                let (other_hwnd,clicked):(HWND,bool) = get_hwnd_on_move_with_click();
+                let (other_hwnd,clicked):(HWND,bool) = get_hwnd_on_move_with_click(Some(&mouse_hook));
                 if clicked{
                     let _ = DestroyWindow(hwnd);
                     return hwnd.0 as usize;
                 }
                 if other_hwnd == hwnd {
                     panic!();
+                }
+                if old_hwnd==other_hwnd{
+                    continue;
                 }
                 let mut rect = RECT {..Default::default()};
                 if GetWindowRect(other_hwnd, ptr::addr_of_mut!(rect)).is_err() {
@@ -112,7 +117,8 @@ fn draw_border()->usize{
                 let hdc = BeginPaint(hwnd, ptr::addr_of_mut!(ps));
                 let hbr = CreateSolidBrush(COLORREF(0x00000000));
                 FillRect(hdc, ptr::addr_of!(ps.rcPaint), hbr);
-                let _ = RedrawWindow(Some(hwnd),None,None,RDW_FRAME | RDW_INVALIDATE | RDW_ERASE);
+                let _ = RedrawWindow(Some(hwnd),None,None, RDW_INVALIDATE );
+                old_hwnd=other_hwnd.clone();
             }
         });
 
@@ -149,11 +155,11 @@ pub fn get_hwnd_on_click(border:bool) -> HWND {
     
 
 }
-pub fn get_hwnd_on_move() -> HWND {
-    unsafe { WindowFromPoint(get_mouse_pos_on_move()) }
+pub fn get_hwnd_on_move(hook:Option<&Hook>) -> HWND {
+    unsafe { WindowFromPoint(get_mouse_pos_on_move(hook)) }
 }
-fn get_hwnd_on_move_with_click()->(HWND,bool){
-    let (point,b)=get_mouse_pos_on_move_with_click();
+fn get_hwnd_on_move_with_click(hook:Option<&Hook>)->(HWND,bool){
+    let (point,b)=get_mouse_pos_on_move_with_click(hook);
     return (unsafe { WindowFromPoint(point) },b);
 }
 pub fn get_hwnd_under_mouse() -> HWND {
@@ -181,10 +187,12 @@ pub fn get_mouse_pos_on_click() -> POINT {
         }
     }
 }
-pub fn get_mouse_pos_on_move() -> POINT {
+pub fn get_mouse_pos_on_move(hook:Option<&Hook>) -> POINT {
+    let hook=match hook {
+        Some(v) => v,
+        None => &mouse_hook().unwrap(),
+    };
     loop {
-        let hook=mouse_hook();
-        let hook=hook.unwrap();
         let event = match hook.recv().unwrap() {
             willhook::InputEvent::Mouse(mouse_event) => match mouse_event.event {
                 willhook::MouseEventType::Move(mouse_move_event) => Some(mouse_move_event),
@@ -200,10 +208,14 @@ pub fn get_mouse_pos_on_move() -> POINT {
         }
     }
 }
-fn get_mouse_pos_on_move_with_click() -> (POINT,bool) {
+fn get_mouse_pos_on_move_with_click(hook:Option<&Hook>) -> (POINT,bool) {
+   
+    let hook=match hook {
+        Some(v) => v,
+        None => &mouse_hook().unwrap(),
+    };
     loop {
-        let hook=mouse_hook();
-        let hook=hook.unwrap();
+        // let hook=hook.unwrap();
         let event = match hook.recv().unwrap() {
             willhook::InputEvent::Mouse(mouse_event) => match mouse_event.event {
                 willhook::MouseEventType::Move(mouse_move_event) => Some(mouse_move_event),
