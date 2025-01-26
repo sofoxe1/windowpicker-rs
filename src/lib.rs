@@ -38,6 +38,8 @@ extern "system" fn callback(hwnd: HWND, uMsg: u32, wParam: WPARAM, lParam: LPARA
                     ..Default::default()
                 };
                 let hdc = BeginPaint(hwnd, ptr::addr_of_mut!(ps));
+                let hbr = CreateSolidBrush(COLORREF(0x00000000));
+                FillRect(hdc, ptr::addr_of!(ps.rcPaint), hbr);
                 let hbr = CreateSolidBrush(windows::Win32::Foundation::COLORREF(
                     255 | (100 << 16) | (20 << 8),
                 ));
@@ -111,13 +113,6 @@ fn draw_border()->usize{
                     continue;
                 }
                 SetWindowPos(hwnd,Some(HWND_TOP),rect.left,rect.top,rect.right - rect.left,rect.bottom - rect.top,SWP_SHOWWINDOW,).unwrap();
-                let mut ps: PAINTSTRUCT = PAINTSTRUCT {
-                    ..Default::default()
-                };
-                let hdc = BeginPaint(hwnd, ptr::addr_of_mut!(ps));
-                let hbr = CreateSolidBrush(COLORREF(0x00000000));
-                FillRect(hdc, ptr::addr_of!(ps.rcPaint), hbr);
-                let _ = RedrawWindow(Some(hwnd),None,None, RDW_INVALIDATE );
                 old_hwnd=other_hwnd.clone();
             }
         });
