@@ -1,1 +1,1 @@
-dead simple library to get window handle under the mouse (Windows only)
+simple library to get window handle under the mouse (Windows only)
