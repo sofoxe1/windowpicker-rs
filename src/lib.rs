@@ -1,7 +1,7 @@
 use std::ptr;
 
 use willhook::{ mouse_hook, Hook, MouseButton, MouseButtonPress};
-use windows::Win32::UI::WindowsAndMessaging::{DestroyWindow, PeekMessageA, PM_REMOVE};
+use windows::Win32::UI::WindowsAndMessaging::{GetMessageA, PostMessageA, WM_QUIT};
 use windows::Win32::{
     Foundation::{HWND, POINT},
     UI::WindowsAndMessaging::{GetCursorPos, WindowFromPoint},
@@ -99,7 +99,7 @@ fn draw_border()->usize{
 
                 let (other_hwnd,clicked):(HWND,bool) = get_hwnd_on_move_with_click(Some(&mouse_hook));
                 if clicked{
-                    let _ = DestroyWindow(hwnd);
+                    let _ =PostMessageA(Some(hwnd), WM_QUIT, WPARAM(0), LPARAM(0));
                     return other_hwnd.0 as usize;
                 }
                 if other_hwnd == hwnd {
@@ -119,16 +119,7 @@ fn draw_border()->usize{
 
         let mut msg = MSG {..Default::default()};
         let hwnd = HWND(u_hwnd as *mut c_void);
-        loop {
-            let result=PeekMessageA(ptr::addr_of_mut!(msg), Some( hwnd), 0, 0,PM_REMOVE).as_bool();
-            if t1.is_finished(){
-                break;
-            }
-            if !result{
-                thread::sleep(time::Duration::from_millis(5));
-                continue;
-            }
-          
+        while GetMessageA(ptr::addr_of_mut!(msg), Some( hwnd), 0, 0).as_bool(){
             let z = TranslateMessage(ptr::addr_of_mut!(msg));
             let r = z.ok();
             if !r.is_ok() && r.as_ref().unwrap_err().code() != HRESULT(0) {
