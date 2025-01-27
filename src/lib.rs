@@ -16,8 +16,8 @@ use windows::{
         Foundation::{GetLastError, COLORREF, HINSTANCE, LPARAM, LRESULT, RECT, WPARAM},
         Graphics::Gdi::{
             BeginPaint, CreateSolidBrush, EndPaint, FillRect,
-            FrameRect, RedrawWindow,
-             PAINTSTRUCT, RDW_ERASE, RDW_FRAME, RDW_INVALIDATE,
+            FrameRect,
+             PAINTSTRUCT,
         },
         UI::WindowsAndMessaging::{
             CreateWindowExA, DefWindowProcA, DispatchMessageA, GetWindowRect,
@@ -93,7 +93,11 @@ fn draw_border()->usize{
         let t1 = thread::spawn(move || {
             let mouse_hook = mouse_hook().unwrap();
             let hwnd = HWND((t1_hwnd) as *mut c_void);
-            let mut old_hwnd=get_hwnd_under_mouse();
+            let mut old_hwnd:Option<HWND>=None;
+            let other_hwnd = get_hwnd_under_mouse();
+            let mut rect = RECT {..Default::default()};
+            let _ = GetWindowRect(other_hwnd, ptr::addr_of_mut!(rect)).is_err();
+            SetWindowPos(hwnd,Some(HWND_TOP),rect.left,rect.top,rect.right - rect.left,rect.bottom - rect.top,SWP_SHOWWINDOW,).unwrap();
             loop {
                 thread::sleep(pool_rate);
 
@@ -105,7 +109,7 @@ fn draw_border()->usize{
                 if other_hwnd == hwnd {
                     panic!();
                 }
-                if old_hwnd==other_hwnd{
+                if old_hwnd.is_some() && old_hwnd.unwrap()==other_hwnd{
                     continue;
                 }
                 let mut rect = RECT {..Default::default()};
@@ -113,7 +117,7 @@ fn draw_border()->usize{
                     continue;
                 }
                 SetWindowPos(hwnd,Some(HWND_TOP),rect.left,rect.top,rect.right - rect.left,rect.bottom - rect.top,SWP_SHOWWINDOW,).unwrap();
-                old_hwnd=other_hwnd.clone();
+                old_hwnd=Some(other_hwnd.clone());
             }
         });
 
