@@ -55,8 +55,8 @@ extern "system" fn callback(hwnd: HWND, uMsg: u32, wParam: WPARAM, lParam: LPARA
 
 fn draw_border()->usize{
     unsafe {
-        let p1 = PCSTR::from_raw(String::from("class").as_ptr());
-        let p2 = PCSTR::from_raw(String::from("name").as_ptr());
+        let p1 = PCSTR::from_raw(String::from("windowpicker-rs").as_ptr());
+        let p2 = PCSTR::from_raw(String::from("windowpicker").as_ptr());
         let class = WNDCLASSEXA {
             cbSize: size_of::<WNDCLASSEXA>() as u32,
             lpszClassName: p1,
