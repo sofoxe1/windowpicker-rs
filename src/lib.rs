@@ -1,15 +1,13 @@
-use std::ptr;
-
+#![no_main]
+#![no_std]
 use willhook::{ mouse_hook, Hook, MouseButton, MouseButtonPress};
-use windows::Win32::UI::WindowsAndMessaging::{GetMessageA, PostMessageA, WM_QUIT};
+use windows::Win32::System::Threading::Sleep;
+use windows::Win32::UI::WindowsAndMessaging::{PeekMessageA, PostMessageA, PM_REMOVE, WM_QUIT};
 use windows::Win32::{
     Foundation::{HWND, POINT},
     UI::WindowsAndMessaging::{GetCursorPos, WindowFromPoint},
 };
-use std::{
-    ffi::{c_int, c_void},
-    thread, time,
-};
+use core::ffi::{c_int,c_void};
 use windows::{
     core::{HRESULT, PCSTR},
     Win32::{
@@ -37,14 +35,14 @@ extern "system" fn callback(hwnd: HWND, uMsg: u32, wParam: WPARAM, lParam: LPARA
                 let mut ps: PAINTSTRUCT = PAINTSTRUCT {
                     ..Default::default()
                 };
-                let hdc = BeginPaint(hwnd, ptr::addr_of_mut!(ps));
+                let hdc = BeginPaint(hwnd, &raw mut ps);
                 let hbr = CreateSolidBrush(COLORREF(0x00000000));
-                FillRect(hdc, ptr::addr_of!(ps.rcPaint), hbr);
+                FillRect(hdc, &raw const ps.rcPaint, hbr);
                 let hbr = CreateSolidBrush(windows::Win32::Foundation::COLORREF(
                     255 | (100 << 16) | (20 << 8),
                 ));
-                FrameRect(hdc, ptr::addr_of!(ps.rcPaint), hbr);
-                let _ = EndPaint(hwnd, ptr::addr_of_mut!(ps));
+                FrameRect(hdc, &raw const ps.rcPaint, hbr);
+                let _ = EndPaint(hwnd, &raw mut ps);
 
                 windows::Win32::Foundation::LRESULT(0)
             }
@@ -55,15 +53,15 @@ extern "system" fn callback(hwnd: HWND, uMsg: u32, wParam: WPARAM, lParam: LPARA
 
 fn draw_border()->usize{
     unsafe {
-        let p1 = PCSTR::from_raw(String::from("windowpicker-rs").as_ptr());
-        let p2 = PCSTR::from_raw(String::from("windowpicker").as_ptr());
+        let p1 = PCSTR::from_raw("windowpicker-rs\0".as_ptr());
+        let p2 = PCSTR::from_raw("windowpicker\0".as_ptr());
         let class = WNDCLASSEXA {
             cbSize: size_of::<WNDCLASSEXA>() as u32,
             lpszClassName: p1,
             lpfnWndProc: Some(callback),
             ..Default::default()
         };
-        let r = RegisterClassExA(ptr::addr_of!(class));
+        let r = RegisterClassExA(&raw const class);
         if r == 0 {
             panic!("{:?}", GetLastError().to_hresult().message());
         }
@@ -89,17 +87,16 @@ fn draw_border()->usize{
         //*mut c_void cant be send between threads so lets convert it to sth that can, definitively safe :)
         let u_hwnd: usize = hwnd.0 as usize;
         let t1_hwnd=u_hwnd.clone();
-        let pool_rate = time::Duration::from_millis(5);
-        let t1 = thread::spawn(move || {
+        let mut msg = MSG {..Default::default()};
             let mouse_hook = mouse_hook().unwrap();
             let hwnd = HWND((t1_hwnd) as *mut c_void);
             let mut old_hwnd:Option<HWND>=None;
             let other_hwnd = get_hwnd_under_mouse();
             let mut rect = RECT {..Default::default()};
-            let _ = GetWindowRect(other_hwnd, ptr::addr_of_mut!(rect)).is_err();
+            let _ = GetWindowRect(other_hwnd, &raw mut rect).is_err();
             SetWindowPos(hwnd,Some(HWND_TOP),rect.left,rect.top,rect.right - rect.left,rect.bottom - rect.top,SWP_SHOWWINDOW,).unwrap();
             loop {
-                thread::sleep(pool_rate);
+                Sleep(0);
 
                 let (other_hwnd,clicked):(HWND,bool) = get_hwnd_on_move_with_click(Some(&mouse_hook));
                 if clicked{
@@ -113,33 +110,27 @@ fn draw_border()->usize{
                     continue;
                 }
                 let mut rect = RECT {..Default::default()};
-                if GetWindowRect(other_hwnd, ptr::addr_of_mut!(rect)).is_err() {
+                if GetWindowRect(other_hwnd, &raw mut rect).is_err() {
                     continue;
                 }
                 SetWindowPos(hwnd,Some(HWND_TOP),rect.left,rect.top,rect.right - rect.left,rect.bottom - rect.top,SWP_SHOWWINDOW,).unwrap();
                 old_hwnd=Some(other_hwnd.clone());
+                let hwnd = HWND(u_hwnd as *mut c_void);
+                while PeekMessageA(&raw mut msg, Some( hwnd), 0, 0,PM_REMOVE).as_bool(){
+                    let z = TranslateMessage(&raw mut msg);
+                    let r = z.ok();
+                    if !r.is_ok() && r.as_ref().unwrap_err().code() != HRESULT(0) {
+                        panic!("{:?}", z);
+                    }
+                    DispatchMessageA(&raw mut msg);
+                }
             }
-        });
-
-        let mut msg = MSG {..Default::default()};
-        let hwnd = HWND(u_hwnd as *mut c_void);
-        while GetMessageA(ptr::addr_of_mut!(msg), Some( hwnd), 0, 0).as_bool(){
-            let z = TranslateMessage(ptr::addr_of_mut!(msg));
-            let r = z.ok();
-            if !r.is_ok() && r.as_ref().unwrap_err().code() != HRESULT(0) {
-                panic!("{:?}", z);
-            }
-            DispatchMessageA(ptr::addr_of_mut!(msg));
-        }
-        return  t1.join().unwrap();
     }
 }
 
 pub fn get_hwnd_on_click(border:bool) -> HWND {
     if border{
-        let t=thread::spawn(move ||{draw_border()});
-        let r=t.join().unwrap();
-        return HWND(r as *mut c_void);
+        return HWND(draw_border() as *mut c_void);
     }
         return unsafe { WindowFromPoint(get_mouse_pos_on_click()) };
     
@@ -154,7 +145,7 @@ fn get_hwnd_on_move_with_click(hook:Option<&Hook>)->(HWND,bool){
 }
 pub fn get_hwnd_under_mouse() -> HWND {
     let mut point = POINT { x: 0, y: 0 };
-    unsafe { GetCursorPos(ptr::addr_of_mut!(point)).unwrap() };
+    unsafe { GetCursorPos(&raw mut point).unwrap() };
     unsafe { WindowFromPoint(point) }
 }
 pub fn get_mouse_pos_on_click() -> POINT {
@@ -171,7 +162,7 @@ pub fn get_mouse_pos_on_click() -> POINT {
                 && event.button == MouseButton::Left(willhook::MouseClick::SingleClick)
             {
                 let mut point = POINT { x: 0, y: 0 };
-                unsafe { GetCursorPos(ptr::addr_of_mut!(point)).unwrap() };
+                unsafe { GetCursorPos(&raw mut point).unwrap() };
                 return point;
             }
         }
@@ -214,7 +205,7 @@ fn get_mouse_pos_on_move_with_click(hook:Option<&Hook>) -> (POINT,bool) {
                         MouseButtonPress::Down => 
                         {
                             let mut point = POINT { ..Default::default() };
-                            unsafe { GetCursorPos(ptr::addr_of_mut!(point)).unwrap() };
+                            unsafe { GetCursorPos(&raw mut point).unwrap() };
                             return (point,true);
                         }
                         ,
