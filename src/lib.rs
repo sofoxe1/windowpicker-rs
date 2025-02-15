@@ -2,7 +2,7 @@
 #![no_std]
 use willhook::{ mouse_hook, Hook, MouseButton, MouseButtonPress};
 use windows::Win32::System::Threading::Sleep;
-use windows::Win32::UI::WindowsAndMessaging::{PeekMessageA, PostMessageA, PM_REMOVE, WM_QUIT};
+use windows::Win32::UI::WindowsAndMessaging::{DestroyWindow, PeekMessageA, PostMessageA, UnregisterClassA, PM_REMOVE, WM_QUIT};
 use windows::Win32::{
     Foundation::{HWND, POINT},
     UI::WindowsAndMessaging::{GetCursorPos, WindowFromPoint},
@@ -101,6 +101,8 @@ fn draw_border()->usize{
                 let (other_hwnd,clicked):(HWND,bool) = get_hwnd_on_move_with_click(Some(&mouse_hook));
                 if clicked{
                     let _ =PostMessageA(Some(hwnd), WM_QUIT, WPARAM(0), LPARAM(0));
+                    DestroyWindow(hwnd).unwrap();
+                    UnregisterClassA(p1, None).unwrap();
                     return other_hwnd.0 as usize;
                 }
                 if other_hwnd == hwnd {
