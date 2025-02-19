@@ -81,7 +81,6 @@ fn draw_border()->usize{
         )
         .unwrap();
         SetLayeredWindowAttributes(hwnd, COLORREF(0x00000000), 100, LWA_COLORKEY).unwrap();
-        //5 is for show fullscreen
         ShowWindow(hwnd, SHOW_WINDOW_CMD(5)).unwrap();
 
         //*mut c_void cant be send between threads so lets convert it to sth that can, definitively safe :)
@@ -119,11 +118,7 @@ fn draw_border()->usize{
                 old_hwnd=Some(other_hwnd.clone());
                 let hwnd = HWND(u_hwnd as *mut c_void);
                 while PeekMessageA(&raw mut msg, Some( hwnd), 0, 0,PM_REMOVE).as_bool(){
-                    let z = TranslateMessage(&raw mut msg);
-                    let r = z.ok();
-                    if !r.is_ok() && r.as_ref().unwrap_err().code() != HRESULT(0) {
-                        panic!("{:?}", z);
-                    }
+                    let _ = TranslateMessage(&raw mut msg);
                     DispatchMessageA(&raw mut msg);
                 }
             }
