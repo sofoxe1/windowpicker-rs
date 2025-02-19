@@ -90,8 +90,11 @@ fn draw_border()->HWND{
             let _ = GetWindowRect(other_hwnd, &raw mut rect).is_err();
             SetWindowPos(hwnd,Some(HWND_TOP),rect.left,rect.top,rect.right - rect.left,rect.bottom - rect.top,SWP_SHOWWINDOW,).unwrap();
             loop {
+                while PeekMessageA(&raw mut msg, Some( hwnd), 0, 0,PM_REMOVE).as_bool(){
+                    let _ = TranslateMessage(&raw mut msg);
+                    DispatchMessageA(&raw mut msg);
+                }
                 Sleep(0);
-
                 let (other_hwnd,clicked):(HWND,bool) = get_hwnd_on_move_with_click(Some(&mouse_hook));
                 if clicked{
                     let _ =PostMessageA(Some(hwnd), WM_QUIT, WPARAM(0), LPARAM(0));
@@ -111,10 +114,6 @@ fn draw_border()->HWND{
                 }
                 SetWindowPos(hwnd,Some(HWND_TOP),rect.left,rect.top,rect.right - rect.left,rect.bottom - rect.top,SWP_SHOWWINDOW,).unwrap();
                 old_hwnd=Some(other_hwnd.clone());
-                while PeekMessageA(&raw mut msg, Some( hwnd), 0, 0,PM_REMOVE).as_bool(){
-                    let _ = TranslateMessage(&raw mut msg);
-                    DispatchMessageA(&raw mut msg);
-                }
             }
     }
 }
