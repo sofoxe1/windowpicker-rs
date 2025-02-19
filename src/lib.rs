@@ -9,7 +9,7 @@ use windows::Win32::{
 };
 use core::ffi::{c_int,c_void};
 use windows::{
-    core::{HRESULT, PCSTR},
+    core::PCSTR,
     Win32::{
         Foundation::{GetLastError, COLORREF, HINSTANCE, LPARAM, LRESULT, RECT, WPARAM},
         Graphics::Gdi::{
@@ -51,7 +51,7 @@ extern "system" fn callback(hwnd: HWND, uMsg: u32, wParam: WPARAM, lParam: LPARA
     }
 }
 
-fn draw_border()->usize{
+fn draw_border()->HWND{
     unsafe {
         let p1 = PCSTR::from_raw("windowpicker-rs\0".as_ptr());
         let p2 = PCSTR::from_raw("windowpicker\0".as_ptr());
@@ -82,13 +82,8 @@ fn draw_border()->usize{
         .unwrap();
         SetLayeredWindowAttributes(hwnd, COLORREF(0x00000000), 100, LWA_COLORKEY).unwrap();
         ShowWindow(hwnd, SHOW_WINDOW_CMD(5)).unwrap();
-
-        //*mut c_void cant be send between threads so lets convert it to sth that can, definitively safe :)
-        let u_hwnd: usize = hwnd.0 as usize;
-        let t1_hwnd=u_hwnd.clone();
         let mut msg = MSG {..Default::default()};
             let mouse_hook = mouse_hook().unwrap();
-            let hwnd = HWND((t1_hwnd) as *mut c_void);
             let mut old_hwnd:Option<HWND>=None;
             let other_hwnd = get_hwnd_under_mouse();
             let mut rect = RECT {..Default::default()};
@@ -102,7 +97,7 @@ fn draw_border()->usize{
                     let _ =PostMessageA(Some(hwnd), WM_QUIT, WPARAM(0), LPARAM(0));
                     DestroyWindow(hwnd).unwrap();
                     UnregisterClassA(p1, None).unwrap();
-                    return other_hwnd.0 as usize;
+                    return other_hwnd
                 }
                 if other_hwnd == hwnd {
                     panic!();
@@ -116,7 +111,6 @@ fn draw_border()->usize{
                 }
                 SetWindowPos(hwnd,Some(HWND_TOP),rect.left,rect.top,rect.right - rect.left,rect.bottom - rect.top,SWP_SHOWWINDOW,).unwrap();
                 old_hwnd=Some(other_hwnd.clone());
-                let hwnd = HWND(u_hwnd as *mut c_void);
                 while PeekMessageA(&raw mut msg, Some( hwnd), 0, 0,PM_REMOVE).as_bool(){
                     let _ = TranslateMessage(&raw mut msg);
                     DispatchMessageA(&raw mut msg);
@@ -127,7 +121,7 @@ fn draw_border()->usize{
 
 pub fn get_hwnd_on_click(border:bool) -> HWND {
     if border{
-        return HWND(draw_border() as *mut c_void);
+        return draw_border();
     }
         return unsafe { WindowFromPoint(get_mouse_pos_on_click()) };
     
