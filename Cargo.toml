@@ -1,7 +1,7 @@
 [package]
 name = "windowpicker"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 [[bin]]
 name = "bin"
 path = "src/bin.rs"
@@ -13,5 +13,5 @@ opt-level="z"
 codegen-units=1
 [dependencies]
 willhook = "0.6.3"
-windows = { version = "0.59.0", features = ["Win32_Graphics_Gdi", "Win32_System_Threading", "Win32_UI_WindowsAndMessaging"], default-features = false }
+windows = { version = "0.60.0", features = ["Win32_Graphics_Gdi", "Win32_System_Threading", "Win32_UI_WindowsAndMessaging"], default-features = false }
 

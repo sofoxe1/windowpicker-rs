@@ -50,7 +50,7 @@ extern "system" fn callback(hwnd: HWND, uMsg: u32, wParam: WPARAM, lParam: LPARA
         };
     }
 }
-
+#[inline(never)]
 fn draw_border()->HWND{
     unsafe {
         let p1 = PCSTR::from_raw("windowpicker-rs\0".as_ptr());
